@@ -5,12 +5,12 @@ from zoedepth.utils.misc import colorize
 import numpy as np
 import torch
 
-# ZoeD_N
-conf = get_config("zoedepth", "infer")
-model_zoe_n = build_model(conf)
+# ZoeD_K
+conf = get_config("zoedepth", "infer", config_version="kitti")
+model_zoe_k = build_model(conf)
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-zoe = model_zoe_n.to(DEVICE)
+zoe = model_zoe_k.to(DEVICE)
 
 
 # Local file
@@ -18,6 +18,8 @@ from PIL import Image
 image = Image.open("./output_frames/scene_11/frame_0.png").convert("RGB")  # load
 
 depth = zoe.infer_pil(image)
+
+print(depth.shape, depth.dtype, np.min(depth), np.max(depth))
 
 # main maal
 fpath = "ZoeDepth/output.png"
