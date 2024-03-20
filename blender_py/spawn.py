@@ -1,4 +1,6 @@
 import bpy
+import json
+import os
                 
 def spawn_objects(filepath, location, rotation):
     with bpy.data.libraries.load(filepath) as (data_from, data_to):
@@ -28,10 +30,43 @@ for obj in bpy.context.scene.objects:
 
 blend_filepath = "/home/ashd/blender-4.0.2-linux-x64/Assets/Vehicles/SedanAndHatchback.blend"
 
-location = [(0,0,0), (100,100,0)]
-rotation = [(0.0, -0.0, 3.14), (0.0, -0.0, 3.14)]
+# Path to your JSON file
+file_path = '/home/ashd/WPI Spring 2024/Computer Vision/Einstein_vision/RBE549-EinsteinVison/spawn.json'
 
-for i in range(len(location)):
+# Open the JSON file and load its content
+with open(file_path, 'r') as file:
+    data = json.load(file)
+
+# Initialize a list to store details for each frame
+frames = []
+types = []
+positions= []
+rotations = []
+scales = []
+
+# tintin's car
+spawn_objects(blend_filepath, (0,0,0), (0,0,3.14)) 
+
+for frame_data in data:
+    # Iterate through each object in the frame
+    for obj in frame_data['objects']:
+        types.append(obj['type'])
+        positions.append(obj['position'])
+        rotations.append(obj['rotation'])
+        scales.append(obj['scale'])
+        
+        
+# print(len(frame_data))
+
+for i in range(len(positions)):
     
-    print(location[i])
-    spawn_objects(blend_filepath, location[i], rotation[i]) 
+    x, y, z = (positions[i]['x'], positions[i]['y'], 0)
+    phi, theta, psi = (rotations[i]['x'], rotations[i]['y'], rotations[i]['z'])
+
+    spawn_objects(blend_filepath, (x, y, z), (phi, theta, psi)) 
+    
+bpy.ops.render.render(write_still=True)
+print(f"Rendered image {i:06d}.png")
+image_name = f"{i:06d}.png"
+image_filepath = os.path.join("/home/ashd/WPI Spring 2024/Computer Vision/Einstein_vision/RBE549-EinsteinVison/blender_py/rendered_images", image_name)
+bpy.data.images['Render Result'].save_render(image_filepath)
