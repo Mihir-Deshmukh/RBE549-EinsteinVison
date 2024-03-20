@@ -13,6 +13,7 @@ def spawn_objects(filepath, location, rotation):
             new_obj.animation_data_clear()
             new_obj.location = location
             new_obj.rotation_euler = rotation
+            new_obj.scale = (0.02, 0.02, 0.02)
             bpy.context.collection.objects.link(new_obj)  # Corrected here
             spawned_objects.append(new_obj)
             for child_obj in obj.children:  # Iterate through child objects and link them
@@ -29,6 +30,7 @@ for obj in bpy.context.scene.objects:
         bpy.data.objects.remove(obj, do_unlink=True)
 
 blend_filepath = "/home/ashd/blender-4.0.2-linux-x64/Assets/Vehicles/SedanAndHatchback.blend"
+# blend_filepath = "/home/ashd/blender-4.0.2-linux-x64/Assets/Vehicles/Truck.blend"
 
 # Path to your JSON file
 file_path = '/home/ashd/WPI Spring 2024/Computer Vision/Einstein_vision/RBE549-EinsteinVison/spawn.json'
@@ -47,6 +49,15 @@ scales = []
 # tintin's car
 spawn_objects(blend_filepath, (0,0,0), (0,0,3.14)) 
 
+camera_location = (0.0, 0.2, 1.4)
+camera_rotation = (1.57, 0.0, 0.0)
+
+if "Camera" in bpy.data.objects:
+    camera = bpy.data.objects["Camera"]
+
+camera.location = camera_location
+camera.rotation_euler = camera_rotation     
+
 for frame_data in data:
     # Iterate through each object in the frame
     for obj in frame_data['objects']:
@@ -54,7 +65,8 @@ for frame_data in data:
         positions.append(obj['position'])
         rotations.append(obj['rotation'])
         scales.append(obj['scale'])
-        
+    
+    break
         
 # print(len(frame_data))
 
