@@ -3,6 +3,7 @@ import os
 import platform
 import sys
 from pathlib import Path
+import json
 
 import torch
 
@@ -18,6 +19,14 @@ from utils.general import (LOGGER, Profile, check_file, check_img_size, check_im
                            increment_path, non_max_suppression, print_args, scale_boxes, strip_optimizer, xyxy2xywh)
 from utils.plots import Annotator, colors, save_one_box
 from utils.torch_utils import select_device, smart_inference_mode
+
+
+def extract_frame_number(filename):
+    """Extract the frame number from the filename."""
+    base = os.path.basename(filename)
+    name, _ = os.path.splitext(base)
+    _, number = name.split('_')
+    return int(number)
 
 
 @smart_inference_mode()
@@ -50,6 +59,8 @@ def run(
         dnn=False,  # use OpenCV DNN for ONNX inference
         vid_stride=1,  # video frame-rate stride
 ):
+    frame_results = []  # This will hold results for all processed images
+
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
     is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
@@ -84,6 +95,11 @@ def run(
     # Run inference
     model.warmup(imgsz=(1 if pt or model.triton else bs, 3, *imgsz))  # warmup
     seen, windows, dt = 0, [], (Profile(), Profile(), Profile())
+    
+    print(f"Path: {source}")
+    
+    detection_result = {"frame": extract_frame_number(source), "objects": []}
+    
     for path, im, im0s, vid_cap, s in dataset:
         with dt[0]:
             im = torch.from_numpy(im).to(model.device)
@@ -136,7 +152,15 @@ def run(
 
                     xywh = xyxy2xywh(torch.tensor(xyxy).view(1, 4)).view(-1).tolist()
 
-                    print(f"xywh: {xywh}")
+                    # print(f"xywh: {xywh}")
+                    
+                    bbx = {"x": xywh[0], "y": xywh[1], "w": xywh[2], "h": xywh[3]}
+                    object_data = {
+                        "type": names[int(cls)],
+                        "bbx": bbx
+                    }
+                    detection_result["objects"].append(object_data)
+                    
 
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
@@ -191,6 +215,13 @@ def run(
         LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
     if update:
         strip_optimizer(weights[0])  # update model (to fix SourceChangeWarning)
+    
+    if not detection_result["objects"]:
+        detection_result["objects"] = None
+        
+        
+    frame_results.append(detection_result)
+    return frame_results  # Return the collected detection results
 
 
 def parse_opt():
@@ -202,12 +233,12 @@ def parse_opt():
     parser.add_argument('--conf-thres', type=float, default=0.5, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='NMS IoU threshold')
     parser.add_argument('--max-det', type=int, default=1000, help='maximum detections per image')
-    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--view-img', action='store_true', help='show results')
     parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
     parser.add_argument('--save-crop', action='store_true', help='save cropped prediction boxes')
-    parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
+    parser.add_argument('--nosave', default=True, action='store_true', help='do not save images/videos')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --classes 0, or --classes 0 2 3')
     parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
@@ -230,7 +261,66 @@ def parse_opt():
 
 def main(opt):
     check_requirements(exclude=('tensorboard', 'thop'))
-    run(**vars(opt))
+    
+    
+    input_path = "/home/mpdeshmukh/RBE549-EinsteinVison/output_frames/scene_1"
+    output_folder = "/home/mpdeshmukh/RBE549-EinsteinVison/model_outputs/yolov9/scene_1"
+    
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+        
+    all_detections = []  # List to hold detection results for all frames
+
+    # count = 0
+    # # Run the model on each image in the input folder
+    # for file in os.listdir(input_path):
+    #     if file.endswith(".png"):
+    #         # set the source to the input file
+    #         opt.source = os.path.join(input_path, file)
+    #         detections = run(**vars(opt))  # Get detections for this frame
+    #         all_detections.extend(detections)  # Append detections to the list
+    #         print(f"Processed {file}")
+                
+    #     if count > 10:
+    #         break
+        
+    #     count += 1
+        
+    files = [file for file in os.listdir(input_path) if file.endswith(".png")]
+
+    # Extract frame numbers from file names
+    frame_numbers = []
+    for file in files:
+        try:
+            frame_number = int(file.split("_")[-1].split(".")[0])
+            frame_numbers.append(frame_number)
+        except ValueError:
+            pass  # Ignore files that do not match the pattern
+
+    if frame_numbers:
+        frame_numbers.sort()  # Sort the frame numbers in ascending order
+
+        for frame_number in frame_numbers:
+            file_name = f"frame_{frame_number}.png"
+            file_path = os.path.join(input_path, file_name)
+            
+            if os.path.exists(file_path):  # Check if file exists
+                # set the source to the input file
+                opt.source = file_path
+                detections = run(**vars(opt))  # Get detections for this frame
+                all_detections.extend(detections)  # Append detections to the list
+                print(f"Processed {file_name}")
+            else:
+                print(f"File {file_name} not found")
+    else:
+        print("No files matching the pattern found in the directory.")
+    
+    output_json_path = os.path.join(output_folder, "results.json")
+    with open(output_json_path, "w") as f:
+        json.dump(all_detections, f, indent=4)
+    
+    print(f"Detections saved to {output_json_path}")
+    
 
 
 if __name__ == "__main__":
