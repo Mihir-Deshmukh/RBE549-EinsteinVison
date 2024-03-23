@@ -26,7 +26,10 @@ def read_frames_from_video(video_path, output_dir):
             break
 
         # Save the frame as an image
-        cv2.imwrite(os.path.join(output_dir, f'frame_{frame_count}.png'), frame)
+        if frame_count % 10 == 0:
+            # Save the frame as an image
+            cv2.imwrite(os.path.join(output_dir, f'frame_{frame_count}.png'), frame)
+
         frame_count += 1
 
     # Release the video file
@@ -34,9 +37,10 @@ def read_frames_from_video(video_path, output_dir):
 
 # Path to the video file
 # video_path = "P3Data/Sequences/scene1/Undist/2023-02-14_11-04-07-front_undistort.mp4"
-video_path = "P3Data/Sequences/scene11/Undist/2023-03-11_17-19-53-front_undistort.mp4"
+# video_path = "P3Data/Sequences/scene11/Undist/2023-03-11_17-19-53-front_undistort.mp4"
+video_path = "P3Data/Sequences/scene9/Undist/2023-03-04_17-20-36-front_undistort.mp4"
 
-output_dir = "output_frames/scene_11"
+output_dir = "output_frames/scene_9"
 
 # Call the function to read frames from the video
 read_frames_from_video(video_path, output_dir)
